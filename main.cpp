@@ -32,8 +32,7 @@ constexpr std::array<int, 21> attributeEnums = {
         FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS
 };
 
-
-std::map<int, std::string> attributeMap = {
+map<int, string> attributeMap = {
         {FILE_ATTRIBUTE_HIDDEN,                "Hidden"},
         {FILE_ATTRIBUTE_SYSTEM,                "Part of OS"},
         {FILE_ATTRIBUTE_DIRECTORY,             "Directory"},
@@ -55,6 +54,21 @@ std::map<int, std::string> attributeMap = {
         {FILE_ATTRIBUTE_UNPINNED,              "Unpinned"},
         {FILE_ATTRIBUTE_RECALL_ON_OPEN,        "Recall on open"},
         {FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS, "Recall on data access"}
+};
+
+map<DWORD, string> systemFlagsMap = {
+        {FS_CASE_IS_PRESERVED,                "The file system preserves the case of file names."},
+        {FS_CASE_SENSITIVE,                "The file system uses case-sensitive file names."},
+        {FS_UNICODE_STORED_ON_DISK,             "The file system supports Unicode in file names as they appear on disk."},
+        {FS_PERSISTENT_ACLS,               "The file system preserves and enforces access control lists (ACLs)."},
+        {FS_FILE_COMPRESSION,                "The file system supports file-based compression, where individual files can be compressed while others are not."},
+        {FS_VOL_IS_COMPRESSED,                "The entire volume is compressed; for example, DoubleSpace has been used on the disk."},
+        {FILE_NAMED_STREAMS,             "The file system supports named streams."},
+        {FILE_SUPPORTS_ENCRYPTION,           "The file system supports the Encrypted File System (EFS)."},
+        {FILE_SUPPORTS_OBJECT_IDS,         "The file system supports object identifiers."},
+        {FILE_SUPPORTS_REPARSE_POINTS,            "The file system supports reparse points."},
+        {FILE_SUPPORTS_SPARSE_FILES,               "The file system supports sparse files."},
+        {FILE_VOLUME_QUOTAS,   "The file system supports disk quotas."}
 };
 
 map<char, string> disks;
@@ -91,15 +105,15 @@ string GetLastErrorAsString() {
 
 void printMenu() {
     std::cout
-            << "1) ls disks\n"
-            << "2) print disk info\n"
-            << "3) create dir\n"
-            << "4) rm dir\n"
-            << "5) create file\n"
-            << "6) copy/move file\n"
-            << "7) get file attributes\n"
-            << "8) set file attributes\n"
-            << "9) get file time\n"
+            << " 1) list disks\n"
+            << " 2) print disk info\n"
+            << " 3) create dir\n"
+            << " 4) remove dir\n"
+            << " 5) create file\n"
+            << " 6) copy/move file\n"
+            << " 7) get file attributes\n"
+            << " 8) set file attributes\n"
+            << " 9) get file time\n"
             << "10) set file time\n"
             << "11) exit\n";
     std::cout << "--------------------------\n";
@@ -123,9 +137,8 @@ void getDiskInfo() {
     char diskName;
     cout << "Enter disk name: ";
     cin >> diskName;
-    int type;
 
-    type = GetDriveTypeA(disks[diskName].c_str());
+    auto type = GetDriveTypeA(disks[diskName].c_str());
 
     cout << "Disk type: " << endl;
     if (type == DRIVE_UNKNOWN)
@@ -147,6 +160,7 @@ void getDiskInfo() {
     char VolumeNameBuffer[100];
     char FileSystemNameBuffer[100];
     unsigned long VolumeSerialNumber;
+    DWORD systemFlags;
 
     BOOL GetVolumeInformationFlag = GetVolumeInformationA(
             disks[diskName].c_str(),
@@ -154,7 +168,7 @@ void getDiskInfo() {
             100,
             &VolumeSerialNumber,
             nullptr,
-            nullptr,
+            &systemFlags,
             FileSystemNameBuffer,
             100);
 
@@ -164,6 +178,15 @@ void getDiskInfo() {
         cout << "File System is " << FileSystemNameBuffer << endl;
     } else
         cout << "Not Present (GetVolumeInformation)" << endl;
+
+    cout << "System flags: " << endl;
+    for (auto& flag: systemFlagsMap) {
+        if (flag.first & systemFlags) {
+            cout << flag.second << endl;
+        }
+    }
+
+    cout << endl;
 
     ULARGE_INTEGER FreeBytesAvailable = {0};
     ULARGE_INTEGER TotalNumberOfBytes = {0};
@@ -199,7 +222,11 @@ void createFile() {
 
     std::string path;
     std::cin >> path;
-    HANDLE f = CreateFileA(path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL,
+    HANDLE f = CreateFileA(path.c_str(),
+                           GENERIC_READ | GENERIC_WRITE,
+                           0, nullptr,
+                           CREATE_NEW,
+                           FILE_ATTRIBUTE_NORMAL,
                            nullptr);
     if (f == nullptr) {
         std::cout << std::format("error: {}\n", GetLastErrorAsString());
@@ -212,7 +239,6 @@ void createFile() {
     }
 
     std::cout << std::format("Created file: {}\n", path);
-
 }
 
 void createDir() {
@@ -245,7 +271,7 @@ void copyOrMoveFile() {
     std::cin >> action;
 
     if (action < 1 || action > 2) {
-        std::cout << "Unsopported action!\n";
+        std::cout << "Unsupported action!\n";
         return;
     }
 
@@ -279,12 +305,9 @@ void copyOrMoveFile() {
             std::cout << std::format("error: {}\n", GetLastErrorAsString());
             return;
         }
-
         std::cout << std::format("Moved to the: {}\n", newPath);
         return;
     }
-
-
 }
 
 std::vector<std::string> getListOfAttributes(const std::string &path) {
@@ -314,11 +337,9 @@ void getFileAttributes() {
     for (auto &el: attributes) {
         std::cout << std::format(" {}\n", el);
     }
-
 }
 
 void setFileAttributes() {
-
     std::cout << "Enter file path: ";
     std::string path;
     std::cin >> path;
@@ -338,16 +359,13 @@ void setFileAttributes() {
     std::cout << "Enter indexes which you want to add: ";
     std::string indexesLine;
 
-    // Disable skipping whitespace characters
     std::cin >> std::ws >> std::noskipws;
 
-    // Read from stdin until the end of the line
     char c;
     while (std::cin >> c && c != '\n') {
         indexesLine += c;
     }
 
-    // Enable skipping whitespace characters again
     std::cin >> std::skipws;
     std::stringstream ss(indexesLine);
 
@@ -368,7 +386,6 @@ void setFileAttributes() {
         return;
     }
     std::cout << "Attributes added successfully!" << std::endl;
-
 }
 
 void getFileTime() {
